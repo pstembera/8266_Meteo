@@ -1,5 +1,6 @@
 -- ds1820.lua
 -- Measure temperature and post data to thingspeak.com
+-- added comment, finally this will be rewritten to local servlet
 
 -- Function used for negative temperature values
 function bxor( a, b)
