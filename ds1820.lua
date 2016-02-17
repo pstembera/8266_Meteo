@@ -1,8 +1,8 @@
 -- ds1820.lua
 -- Measure temperature and post data to thingspeak.com
 
--- Function used for negative temperature values
-function bxor( a, b)
+-- XOR - function used for adjusting negative temperature values
+function bxor(a, b)
 	local r = 0
 	for i = 0, 31 do
 		if ( a % 2 + b % 2 == 1 ) then
