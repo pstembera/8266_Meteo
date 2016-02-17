@@ -1,6 +1,5 @@
 -- ds1820.lua
 -- Measure temperature and post data to thingspeak.com
--- added comment, finally this will be rewritten to local servlet
 
 -- Function used for negative temperature values
 function bxor( a, b)
@@ -18,74 +17,76 @@ end
 --- Get temperature from DS18B20 
 function getTemp()
 
+	local temp = -999 -- default value
+	local log = true -- is logger on?
 	local addr = nil
 	local count = 0
 	local data = nil
 	local pin = 3 -- pin connected to DS18B20 - GPI0
 	local s = ''
 
-    -- setup gpio pin for oneWire access
-    ow.setup(pin)
+	-- setup gpio pin for oneWire access
+	ow.setup(pin)
 
-    -- do search until addr is returned
-    repeat
-        count = count + 1
-        addr = ow.reset_search(pin)
-        addr = ow.search(pin)
-        tmr.wdclr()
+	-- do search until addr is returned
+	repeat
+		count = count + 1
+		addr = ow.reset_search(pin)
+		addr = ow.search(pin)
+		tmr.wdclr()
 	until((addr ~= nil) or (count > 100))
 
-    -- if addr was never returned, abort
-    if (addr == nil) then
-		print('DS18B20 not found')
-        return -999999
-	end
-  
-    s = string.format("Addr:%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X", addr:byte(1),addr:byte(2),addr:byte(3),addr:byte(4), addr:byte(5),addr:byte(6),addr:byte(7),addr:byte(8))
-    --print(s)
-
-    -- validate addr checksum
-    crc = ow.crc8(string.sub(addr, 1, 7))
-    if (crc ~= addr:byte(8)) then
-        print('DS18B20 Addr CRC failed');
-        return -999999
+	-- if addr was never returned, abort
+	if (addr == nil) then
+		if (log) print('DS18B20 not found')
+		return temp
 	end
 
-    if not((addr:byte(1) == 0x10) or (addr:byte(1) == 0x28)) then
-        print('DS18B20 not found')
-        return -999999
-	end
-        
-    ow.reset(pin) -- reset onewire interface
-    ow.select(pin, addr) -- select DS18B20
-    ow.write(pin, 0x44, 1) -- store temp in scratchpad
-    tmr.delay(1000000) -- wait 1 sec
-    
-    present = ow.reset(pin) -- returns 1 if dev present
-    if present ~= 1 then
-        print('DS18B20 not present')
-        return -999999
-	end
-    
-    ow.select(pin, addr) -- select DS18B20 again
-    ow.write(pin,0xBE,1) -- read scratchpad
+	if (log) 
+		print(string.format("Addr:%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X", addr:byte(1), addr:byte(2), addr:byte(3), addr:byte(4), addr:byte(5), addr:byte(6), addr:byte(7), addr:byte(8)))
 
-    -- rx data from DS18B20
-    data = nil
-    data = string.char(ow.read(pin))
-    for i = 1, 8 do
+	-- validate addr checksum
+	crc = ow.crc8(string.sub(addr, 1, 7))
+	if (crc ~= addr:byte(8)) then
+		if (log) print('DS18B20 addr CRC failed');
+		return temp
+	end
+
+	if not((addr:byte(1) == 0x10) or (addr:byte(1) == 0x28)) then
+	if (log) print('DS18B20 not found')
+		return temp
+	end
+
+	ow.reset(pin) -- reset onewire interface
+	ow.select(pin, addr) -- select DS18B20
+	ow.write(pin, 0x44, 1) -- store temp in scratchpad
+	tmr.delay(1000000) -- wait 1 sec
+
+	present = ow.reset(pin) -- returns 1 if dev present
+	if present ~= 1 then
+		if (log) print('DS18B20 not present')
+		return temp
+	end
+
+	ow.select(pin, addr) -- select DS18B20 again
+	ow.write(pin,0xBE,1) -- read scratchpad
+
+	-- rx data from DS18B20
+	data = nil
+	data = string.char(ow.read(pin))
+	for i = 1, 8 do
 		data = data .. string.char(ow.read(pin))
-    end
-    
-    s = string.format("Data:%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X", data:byte(1), data:byte(2), data:byte(3), data:byte(4), data:byte(5), data:byte(6), data:byte(7), data:byte(8))
-    --print(s)
+	end
 
-    -- validate data checksum
-    crc = ow.crc8(string.sub(data,1,8))
-    if (crc ~= data:byte(9)) then
-        print('DS18B20 data CRC failed')
-        return -999999
-    end
+	if (log) 
+		print (string.format("Data:%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X", data:byte(1), data:byte(2), data:byte(3), data:byte(4), data:byte(5), data:byte(6), data:byte(7), data:byte(8)))
+
+	-- validate data checksum
+	crc = ow.crc8(string.sub(data,1,8))
+	if (crc ~= data:byte(9)) then
+		if (log) print('DS18B20 data CRC failed')
+		return temp
+	end
 
 	-- now change it from negative values
 	temp = (data:byte(1) + data:byte(2) * 256)
@@ -95,15 +96,13 @@ function getTemp()
 		temp = (bxor(temp, 0xffff)) + 1
 		temp = (-1) * temp
 	end
-    
+
 	temp = temp * 625
 	
 	return temp
-	
-    -- compute and return temp as 99V9999 (V is implied decimal-a little COBOL there)
-    -- return (data:byte(1) + data:byte(2) * 256) * 625
-	    
+		    
 end -- getTemp
+
 
 --- Get temp and send data to thingspeak.com
 function sendData()
