@@ -28,7 +28,6 @@ function getTemp()
 	local count = 0
 	local data = nil
 	local pin = 3 -- pin connected to DS18B20 - GPI0
-	local s = ''
 
 	-- setup gpio pin for oneWire access
 	ow.setup(pin)
