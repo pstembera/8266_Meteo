@@ -1,7 +1,11 @@
 -- ds1820.lua
 -- Measure temperature and post data to thingspeak.com
 
--- XOR - function used for adjusting negative temperature values
+log = true -- is logger on?
+
+--
+----
+------ XOR - function used for adjusting negative temperature values
 function bxor(a, b)
 	local r = 0
 	for i = 0, 31 do
@@ -14,11 +18,12 @@ function bxor(a, b)
 	return r
 end
 
---- Get temperature from DS18B20 
+--
+----
+------ Get temperature from DS18B20 
 function getTemp()
 
 	local temp = -999 -- default value
-	local log = true -- is logger on?
 	local addr = nil
 	local count = 0
 	local data = nil
@@ -69,7 +74,7 @@ function getTemp()
 	end
 
 	ow.select(pin, addr) -- select DS18B20 again
-	ow.write(pin,0xBE,1) -- read scratchpad
+	ow.write(pin, 0xBE, 1) -- read scratchpad
 
 	-- rx data from DS18B20
 	data = nil
@@ -103,25 +108,19 @@ function getTemp()
 		    
 end -- getTemp
 
-
---- Get temp and send data to thingspeak.com
+--
+----
+------ Get temp and send data to thingspeak.com
 function sendData()
 
-	rawtemp = getTemp()
-	temp = rawtemp / 10000
-	
-	--Need to test for minus values!
-	t1 = rawtemp / 10000
-	t2 = (rawtemp >= 0 and rawtemp % 10000) or (10000 - rawtemp % 10000)
-
-	print("RawTemp="..rawtemp.." Celsius")	
-	print("Temp="..temp.." Celsius")
-	print("t1="..t1.." t2="..t2.." Celsius")
+	temp = getTemp()
+	if (log) print("Measured temp="..temp.." Celsius")
 		
 	-- conection to thingspeak.com
-	print("Sending data to thingspeak.com")
+	if (log) print("Sending data to thingspeak.com")
 	conn=net.createConnection(net.TCP, 0) 
 	conn:on("receive", function(conn, payload) print(payload) end)
+	
 	-- api.thingspeak.com 184.106.153.149
 	conn:connect(80,'184.106.153.149') 
 	conn:send("GET /update?key=N0AQKXUUY2MTFXWV&field1="..temp.." HTTP/1.1\r\n") 
@@ -130,13 +129,15 @@ function sendData()
 	conn:send("User-Agent: Mozilla/4.0 (compatible; esp8266 Lua; Windows NT 5.1)\r\n")
 	conn:send("\r\n")
 	conn:on("sent",function(conn)
-		print("Closing connection")
+		if (log) print("Closing connection")
 		conn:close()
 	end)
 	conn:on("disconnection", function(conn)
-		print("Got disconnection...")
+		if (log) print("Got disconnection...")
 	end)
-end
+end --sendData
 
--- send data every X ms senconds to thing speak
+--
+----
+------ Send data every X ms senconds to thing speak
 tmr.alarm(0, 60000, 1, function() sendData() end )
