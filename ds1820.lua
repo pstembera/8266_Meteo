@@ -8,12 +8,12 @@ log = true -- is logger on?
 ------ XOR - function used for adjusting negative temperature values
 function bxor(a, b)
 	local r = 0
-	for i = 0, 31 do
+	for i = 0, 15 do
 		if ( a % 2 + b % 2 == 1 ) then
 			r = r + 2^i
 		end
-		a = a / 2
-		b = b / 2
+		a = math.floor(a/2)
+		b = math.floor(b/2)
 	end
 	return r
 end
@@ -42,22 +42,29 @@ function getTemp()
 
 	-- if addr was never returned, abort
 	if (addr == nil) then
-		if (log) print('DS18B20 not found')
+		if (log) then 
+			print('DS18B20 not found')
+		end
 		return temp
 	end
 
-	if (log) 
+	if (log) then 
 		print(string.format("Addr:%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X", addr:byte(1), addr:byte(2), addr:byte(3), addr:byte(4), addr:byte(5), addr:byte(6), addr:byte(7), addr:byte(8)))
+	end
 
 	-- validate addr checksum
 	crc = ow.crc8(string.sub(addr, 1, 7))
 	if (crc ~= addr:byte(8)) then
-		if (log) print('DS18B20 addr CRC failed');
+		if (log) then 
+			print('DS18B20 addr CRC failed');
+		end
 		return temp
 	end
 
 	if not((addr:byte(1) == 0x10) or (addr:byte(1) == 0x28)) then
-	if (log) print('DS18B20 not found')
+		if (log) then 
+			print('DS18B20 not found')
+		end
 		return temp
 	end
 
@@ -68,7 +75,9 @@ function getTemp()
 
 	present = ow.reset(pin) -- returns 1 if dev present
 	if present ~= 1 then
-		if (log) print('DS18B20 not present')
+		if (log) then 
+			print('DS18B20 not present')
+		end
 		return temp
 	end
 
@@ -82,27 +91,31 @@ function getTemp()
 		data = data .. string.char(ow.read(pin))
 	end
 
-	if (log) 
+	if (log) then 
 		print (string.format("Data:%02X-%02X-%02X-%02X-%02X-%02X-%02X-%02X", data:byte(1), data:byte(2), data:byte(3), data:byte(4), data:byte(5), data:byte(6), data:byte(7), data:byte(8)))
+	end
 
 	-- validate data checksum
 	crc = ow.crc8(string.sub(data,1,8))
 	if (crc ~= data:byte(9)) then
-		if (log) print('DS18B20 data CRC failed')
+		if (log) then 
+			print('DS18B20 data CRC failed')
+		end
 		return temp
 	end
 
-	-- now change it from negative values
-	temp = (data:byte(1) + data:byte(2) * 256)
-	
-	-- first bit is 1
+	-- put measured bytes into one number, first second byte and then first one
+	temp = (data:byte(1) + data:byte(2) * 256) -- will sort bytes
+
+	-- now if first bit is 1 then change it from negative values
 	if (temp > 32768) then
 		temp = (bxor(temp, 0xffff)) + 1
 		temp = (-1) * temp
 	end
 
-	temp = temp * 625
-	
+	-- this will make from integer temperature real number
+	temp = temp * 625 / 10000
+
 	return temp
 		    
 end -- getTemp
@@ -113,13 +126,19 @@ end -- getTemp
 function sendData()
 
 	temp = getTemp()
-	if (log) print("Measured temp="..temp.." Celsius")
-		
+	
+	if (log) then 
+		print("Measured temp="..temp.." Celsius")
+	end
+
 	-- conection to thingspeak.com
-	if (log) print("Sending data to thingspeak.com")
+	if (log) then 
+		print("Sending data to thingspeak.com")
+	end
+	
 	conn=net.createConnection(net.TCP, 0) 
 	conn:on("receive", function(conn, payload) print(payload) end)
-	
+
 	-- api.thingspeak.com 184.106.153.149
 	conn:connect(80,'184.106.153.149') 
 	conn:send("GET /update?key=N0AQKXUUY2MTFXWV&field1="..temp.." HTTP/1.1\r\n") 
@@ -127,12 +146,12 @@ function sendData()
 	conn:send("Accept: */*\r\n") 
 	conn:send("User-Agent: Mozilla/4.0 (compatible; esp8266 Lua; Windows NT 5.1)\r\n")
 	conn:send("\r\n")
-	conn:on("sent",function(conn)
-		if (log) print("Closing connection")
+	conn:on("sent", function(conn)
+		print("Closing connection")
 		conn:close()
 	end)
 	conn:on("disconnection", function(conn)
-		if (log) print("Got disconnection...")
+		print("Got disconnection...")
 	end)
 end --sendData
 
