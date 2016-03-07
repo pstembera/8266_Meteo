@@ -158,4 +158,4 @@ end --sendData
 --
 ----
 ------ Send data every X ms senconds to thing speak
-tmr.alarm(0, 60000, 1, function() sendData() end )
+tmr.alarm(0, 1800000, 1, function() sendData() end )
