@@ -2,7 +2,7 @@
 print("Setting up WIFI...")
 wifi.setmode(wifi.STATION)
 --modify according your wireless router settings
-wifi.sta.config("U Cihelny","Dorka11_")
+wifi.sta.config("U Cihelny","xxx")
 wifi.sta.connect()
 tmr.alarm(1, 1000, 1, function() 
 	if wifi.sta.getip()== nil then 
